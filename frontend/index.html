@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>登阶</title>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", sans-serif; max-width: 860px; margin: 40px auto; padding: 0 16px; color: #0f172a; }
+  h1 { font-size: 1.25rem; }
+  h2 { font-size: 1rem; margin-top: 0; }
+  a { color: #0f766e; }
+  .panel { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0; }
+  label { display: block; font-size: 0.875rem; color: #475569; margin-bottom: 4px; }
+  input, select { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; margin-bottom: 12px; }
+  button { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; background: #0f766e; color: #fff; font-size: 0.875rem; }
+  button.secondary { background: #64748b; }
+  button.danger { background: #dc2626; }
+  button.small { padding: 4px 10px; font-size: 0.8rem; }
+  button.active { background: #0f766e; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .seg button { margin-right: 8px; }
+  .error { color: #dc2626; font-size: 0.875rem; margin-top: 8px; }
+  .hidden { display: none; }
+  .row { display: flex; gap: 12px; align-items: flex-end; }
+  .row > div { flex: 1; }
+  .goal-card { border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; margin: 8px 0; background: #fff; }
+  .goal-card .goal-title { font-weight: 600; }
+  .goal-card .goal-meta { font-size: 0.8rem; color: #64748b; margin-top: 4px; }
+  .task-card { border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; margin: 6px 0; background: #fff; }
+  .task-card .task-title { font-weight: 500; }
+  .task-card .task-meta { font-size: 0.8rem; color: #64748b; margin-top: 2px; }
+  .task-card .task-actions { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .task-card .edit-row { gap: 8px; margin-top: 6px; align-items: center; }
+  .task-card .edit-row label { margin: 0; font-size: 0.75rem; }
+  .task-card .edit-row input { margin: 0; width: auto; padding: 4px 6px; font-size: 0.8rem; }
+  .badge { display: inline-block; font-size: 0.7rem; padding: 2px 6px; border-radius: 3px; }
+  .badge.ai { background: #e0f2fe; color: #0369a1; }
+  .badge.manual { background: #fef3c7; color: #92400e; }
+  .badge.verified { background: #d1fae5; color: #065f46; }
+  .badge.unverified { background: #fee2e2; color: #991b1b; }
+  .badge.done { background: #e0e7ff; color: #3730a3; }
+  .cols { display: flex; gap: 16px; }
+  .cols > div { flex: 1; }
+  .loading { color: #64748b; font-size: 0.875rem; }
+  .empty { color: #94a3b8; font-size: 0.875rem; font-style: italic; }
+  .filter-bar button { margin-right: 8px; }
+  .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+  .day-cell { border: 1px solid #e2e8f0; border-radius: 4px; padding: 8px; min-height: 80px; background: #fff; }
+  .day-header { font-size: 0.75rem; color: #475569; margin-bottom: 4px; font-weight: 600; }
+  .day-cell .mini-task { font-size: 0.75rem; padding: 2px 4px; margin: 2px 0; border-radius: 2px; background: #f1f5f9; }
+  .day-cell .mini-task.ai { border-left: 3px solid #0ea5e9; }
+  .day-cell .mini-task.manual { border-left: 3px solid #f59e0b; }
+  .gap-positive { color: #dc2626; font-weight: 600; }
+  .gap-negative { color: #16a34a; font-weight: 600; }
+  .gap-zero { color: #475569; }
+  .schedule-wrap { min-width: 720px; }
+  .schedule-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+  .schedule-table th, .schedule-table td { border: 1px solid #e2e8f0; padding: 0; text-align: center; }
+  .schedule-table th { background: #f1f5f9; padding: 4px; font-weight: 600; color: #475569; }
+  .schedule-table td.time-label { background: #f8fafc; color: #94a3b8; font-size: 0.7rem; width: 40px; }
+  .course-block { background: #e0f2fe; border-left: 3px solid #0ea5e9; padding: 2px 4px; font-size: 0.7rem; cursor: pointer; border-radius: 2px; overflow: hidden; text-align: left; }
+  .course-block.overlap2 { background: #fef3c7; border-left-color: #f59e0b; }
+  .course-block .cb-loc { color: #64748b; font-size: 0.65rem; }
+</style>
+</head>
+<body>
+<h1>登阶</h1>
+<p>健康检查：<a href="/api/health">/api/health</a></p>
+
+<div id="authArea" class="panel">
+  <div class="seg">
+    <button id="tabLogin" class="active" onclick="switchAuth('login')">登录</button>
+    <button id="tabRegister" class="secondary" onclick="switchAuth('register')">注册</button>
+  </div>
+  <form id="loginForm" onsubmit="doLogin(event)">
+    <label>用户名</label>
+    <input id="loginUser" type="text" minlength="3" maxlength="32" required>
+    <label>密码</label>
+    <input id="loginPass" type="password" required>
+    <button type="submit">登录</button>
+    <p class="error hidden" id="loginErr"></p>
+  </form>
+  <form id="registerForm" class="hidden" onsubmit="doRegister(event)">
+    <label>用户名（3-32 字符）</label>
+    <input id="regUser" type="text" minlength="3" maxlength="32" required>
+    <label>密码（>= 8 字符）</label>
+    <input id="regPass" type="password" minlength="8" required>
+    <button type="submit">注册并登录</button>
+    <p class="error hidden" id="regErr"></p>
+  </form>
+</div>
+
+<div id="userArea" class="panel hidden">
+  <p>当前用户：<b id="currentUsername"></b> <button class="secondary small" onclick="doLogout()">登出</button></p>
+</div>
+
+<div id="mainArea" class="hidden">
+  <div class="panel">
+    <h2>创建目标</h2>
+    <form onsubmit="createGoal(event)">
+      <div class="row">
+        <div style="flex:2">
+          <label>目标标题</label>
+          <input id="goalTitle" type="text" maxlength="200" required placeholder="如：掌握微积分基本定理">
+        </div>
+        <div>
+          <label>截止日期</label>
+          <input id="goalDeadline" type="date">
+        </div>
+      </div>
+      <label>备注（可选）</label>
+      <input id="goalNote" type="text" placeholder="补充说明">
+      <button type="submit">创建目标</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2>我的目标</h2>
+    <div id="goalsList"><p class="loading">加载中...</p></div>
+  </div>
+
+  <div class="panel">
+    <h2>手填任务</h2>
+    <p style="font-size:0.8rem;color:#64748b;margin-top:0">手填任务直接进入已确认池，无需 AI 拆解</p>
+    <form onsubmit="createManualTask(event)">
+      <div class="row">
+        <div style="flex:3">
+          <label>任务标题</label>
+          <input id="manualTitle" type="text" maxlength="200" required placeholder="如：看线代第 3 章">
+        </div>
+        <div>
+          <label>估时（小时）</label>
+          <input id="manualHours" type="number" step="0.5" min="0.5" value="1">
+        </div>
+        <div>
+          <label>截止日期</label>
+          <input id="manualDeadline" type="date">
+        </div>
+      </div>
+      <button type="submit">添加任务</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <div class="row" style="align-items:center">
+      <h2 style="margin:0">任务池</h2>
+      <div class="filter-bar" style="margin-left:auto">
+        <button id="filterAll" class="small active" onclick="setFilter('all')">全部</button>
+        <button id="filterPending" class="small secondary" onclick="setFilter('pending_confirm')">待确认</button>
+        <button id="filterConfirmed" class="small secondary" onclick="setFilter('confirmed')">已确认</button>
+        <button id="filterDone" class="small secondary" onclick="setFilter('done')">已完成</button>
+      </div>
+    </div>
+    <div class="cols" id="taskCols">
+      <div class="panel" id="pendingPanel">
+        <h2>待确认</h2>
+        <div style="margin-bottom:8px">
+          <button id="bulkConfirmBtn" class="small" onclick="bulkConfirm()">全部确认</button>
+        </div>
+        <div id="pendingTasks"><p class="loading">加载中...</p></div>
+      </div>
+      <div class="panel" id="confirmedPanel">
+        <h2>已确认</h2>
+        <p style="font-size:0.8rem;color:#64748b;margin-top:0">可编辑 / 删除 / 标记完成</p>
+        <div id="confirmedTasks"><p class="loading">加载中...</p></div>
+      </div>
+    </div>
+    <div class="panel hidden" id="donePanel">
+      <h2>已完成</h2>
+      <div id="doneTasks"><p class="loading">加载中...</p></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="row" style="align-items:center">
+      <h2 style="margin:0">今日复盘</h2>
+      <span id="todayDate" style="margin-left:12px;color:#64748b;font-size:0.9rem"></span>
+      <span id="streakDisplay" style="margin-left:auto;font-weight:600"></span>
+    </div>
+    <div id="todayPending"></div>
+    <div id="todayDone" style="margin-top:12px"></div>
+  </div>
+
+  <div class="panel">
+    <h2>周视图</h2>
+    <div class="row" style="align-items:center;margin-bottom:12px">
+      <button class="small secondary" onclick="shiftWeek(-1)">上一周</button>
+      <span id="weekRange" style="font-weight:600;margin:0 12px"></span>
+      <button class="small secondary" onclick="shiftWeek(1)">下一周</button>
+      <button class="small" onclick="goThisWeek()" style="margin-left:12px">本周</button>
+    </div>
+    <div id="capacityBar" style="margin-bottom:12px"></div>
+    <div class="row" style="margin-bottom:12px">
+      <div style="flex:1">
+        <label>本周可投入小时</label>
+        <input id="capacityInput" type="number" step="0.5" min="0" value="0" style="margin-bottom:0">
+      </div>
+      <button onclick="saveCapacity()" style="margin-bottom:0">保存容量</button>
+    </div>
+    <div id="weekGrid"></div>
+    <div id="unscheduledArea" style="margin-top:12px"></div>
+  </div>
+
+  <div class="panel">
+    <h2>课表</h2>
+    <div class="seg" style="margin-bottom:12px">
+      <button id="tabIcs" class="small active" onclick="switchImport('ics')">粘贴 ICS</button>
+      <button id="tabCsv" class="small secondary" onclick="switchImport('csv')">粘贴 CSV</button>
+      <button id="tabManual" class="small secondary" onclick="switchImport('manual')">手填单条</button>
+      <button id="tabPdf" class="small secondary" onclick="switchImport('pdf')">上传 PDF</button>
+    </div>
+    <div id="icsImport">
+      <label>ICS 文本</label>
+      <textarea id="icsContent" rows="6" style="width:100%;font-family:monospace;font-size:0.8rem;padding:8px;border:1px solid #cbd5e1;border-radius:4px;box-sizing:border-box;margin-bottom:8px" placeholder="BEGIN:VCALENDAR&#10;BEGIN:VEVENT&#10;SUMMARY:高等数学&#10;DTSTART:20260907T080000&#10;DTEND:20260907T094000&#10;RRULE:FREQ=WEEKLY;COUNT=16&#10;END:VEVENT&#10;END:VCALENDAR"></textarea>
+      <button class="small" onclick="importIcs()">导入 ICS</button>
+    </div>
+    <div id="csvImport" class="hidden">
+      <label>CSV 文本（表头需含 name,weekday,start_time,end_time）</label>
+      <textarea id="csvContent" rows="6" style="width:100%;font-family:monospace;font-size:0.8rem;padding:8px;border:1px solid #cbd5e1;border-radius:4px;box-sizing:border-box;margin-bottom:8px" placeholder="name,weekday,start_time,end_time,teacher,location&#10;线性代数,2,10:00,11:40,张三,主楼301"></textarea>
+      <button class="small" onclick="importCsv()">导入 CSV</button>
+    </div>
+    <div id="manualImport" class="hidden">
+      <div class="row">
+        <div style="flex:2">
+          <label>课程名</label>
+          <input id="courseName" type="text" placeholder="如：高等数学">
+        </div>
+        <div>
+          <label>周几（1-7）</label>
+          <input id="courseWeekday" type="number" min="1" max="7" value="1">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>开始时间</label>
+          <input id="courseStart" type="text" placeholder="08:00">
+        </div>
+        <div>
+          <label>结束时间</label>
+          <input id="courseEnd" type="text" placeholder="09:40">
+        </div>
+        <div>
+          <label>教师（可选）</label>
+          <input id="courseTeacher" type="text">
+        </div>
+        <div>
+          <label>地点（可选）</label>
+          <input id="courseLocation" type="text">
+        </div>
+      </div>
+      <button class="small" onclick="importManual()">添加课程</button>
+    </div>
+    <div id="pdfImport" class="hidden">
+      <div id="pdfUploadArea">
+        <label>选择课表 PDF 文件</label>
+        <input type="file" id="pdfFile" accept=".pdf" style="margin-bottom:8px">
+        <button class="small" onclick="extractPdfText()" id="pdfExtractBtn">提取文本</button>
+        <p id="pdfStatus" style="font-size:0.8rem;color:#64748b;margin-top:4px"></p>
+      </div>
+      <label>提取的文本（可编辑）</label>
+      <textarea id="pdfText" rows="8" style="width:100%;font-family:monospace;font-size:0.8rem;padding:8px;border:1px solid #cbd5e1;border-radius:4px;box-sizing:border-box;margin-bottom:8px" placeholder="PDF 提取的文本将显示在这里，也可以直接粘贴课表文本"></textarea>
+      <button class="small" onclick="parseCourseText()">解析课表</button>
+      <div id="parsePreview" style="margin-top:12px"></div>
+    </div>
+    <div style="margin-top:16px">
+      <div class="row" style="align-items:center">
+        <h2 style="margin:0">课表列表</h2>
+        <button class="danger small" onclick="clearCourses()" style="margin-left:auto">清空课表</button>
+      </div>
+      <div id="courseList"><p class="loading">加载中...</p></div>
+    </div>
+    <div id="suggestedArea" style="margin-top:12px"></div>
+    <div style="margin-top:16px">
+      <div class="row" style="align-items:center;margin-bottom:8px">
+        <h2 style="margin:0">周课表</h2>
+        <button class="small secondary" onclick="shiftScheduleWeek(-1)" style="margin-left:12px">上一周</button>
+        <span id="scheduleWeekRange" style="font-weight:600;margin:0 8px;font-size:0.9rem"></span>
+        <button class="small secondary" onclick="shiftScheduleWeek(1)">下一周</button>
+        <button class="small" onclick="goScheduleThisWeek()" style="margin-left:8px">本周</button>
+      </div>
+      <div id="scheduleGrid" style="overflow-x:auto"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>小组</h2>
+    <div class="row" style="margin-bottom:12px">
+      <div style="flex:2">
+        <label>创建小组</label>
+        <input id="groupName" type="text" placeholder="小组名" style="margin-bottom:0">
+      </div>
+      <button onclick="createGroup()" style="margin-bottom:0">创建</button>
+    </div>
+    <div class="row" style="margin-bottom:12px">
+      <div style="flex:2">
+        <label>加入小组（邀请码）</label>
+        <input id="joinCode" type="text" placeholder="8位邀请码" style="margin-bottom:0">
+      </div>
+      <button onclick="joinGroup()" style="margin-bottom:0">加入</button>
+    </div>
+    <div id="groupsList"><p class="loading">加载中...</p></div>
+    <div id="groupDetail" style="margin-top:16px"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" onerror="window._pdfjs, "window._pdfjsReady=false"></script>
+<script>
+if (typeof pdfjsLib !== 'undefined') {
+  window._pdfjsReady = true;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+} else {
+  window._pdfjsReady = false;
+}
+</script>
+<script>
+const TOKEN_KEY = 'dengjie.token';
+const USER_KEY = 'dengjie.username';
+
+function getToken() { return localStorage.getItem(TOKEN_KEY) || ''; }
+function setToken(t, u) { localStorage.setItem(TOKEN_KEY, t); localStorage.setItem(USER_KEY, u); }
+function clearToken() { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY); }
+
+let _filter = 'all';
+let _allTasks = [];
+
+async function api(path, opts) {
+  const headers = { 'Content-Type': 'application/json' };
+  const t = getToken();
+  if (t) headers['Authorization'] = 'Bearer ' + t;
+  const res = await fetch(path, Object.assign({ headers }, opts || {}));
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
+}
+
+function switchAuth(mode) {
+  const isLogin = mode === 'login';
+  document.getElementById('loginForm').classList.toggle('hidden', !isLogin);
+  document.getElementById('registerForm').classList.toggle('hidden', isLogin);
+  document.getElementById('tabLogin').classList.toggle('active', isLogin);
+  document.getElementById('tabLogin').classList.toggle('secondary', !isLogin);
+  document.getElementById('tabRegister').classList.toggle('active', !isLogin);
+  document.getElementById('tabRegister').classList.toggle('secondary', isLogin);
+}
+
+function showErr(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg || '';
+  el.classList.toggle('hidden', !msg);
+}
+
+function fmtDate(d) { return d ? d.slice(0, 10) : '-'; }
+
+function badge(source, verified, status) {
+  let s;
+  if (status === 'done') s = '<span class="badge done">已完成</span>';
+  else if (source === 'ai') s = '<span class="badge ai">AI</span>';
+  else s = '<span class="badge manual">手填</span>';
+  const v = verified ? '<span class="badge verified">资源已验证</span>' : '';
+  return s + ' ' + v;
+}
+
+async function doRegister(e) {
+  e.preventDefault();
+  showErr('regErr', '');
+  const username = document.getElementById('regUser').value;
+  const password = document.getElementById('regPass').value;
+  const r = await api('/api/register', { method: 'POST', body: JSON.stringify({ username, password }) });
+  if (r.ok) { setToken(r.data.token, r.data.username); renderUser(); }
+  else { showErr('regErr', r.data.detail || '注册失败'); }
+}
+
+async function doLogin(e) {
+  e.preventDefault();
+  showErr('loginErr', '');
+  const username = document.getElementById('loginUser').value;
+  const password = document.getElementById('loginPass').value;
+  const r = await api('/api/login', { method: 'POST', body: JSON.stringify({ username, password }) });
+  if (r.ok) { setToken(r.data.token, r.data.username); renderUser(); }
+  else { showErr('loginErr', r.data.detail || '登录失败'); }
+}
+
+async function doLogout() {
+  await api('/api/logout', { method: 'POST' });
+  clearToken();
+  renderAuth();
+}
+
+function renderUser() {
+  document.getElementById('authArea').classList.add('hidden');
+  document.getElementById('userArea').classList.remove('hidden');
+  document.getElementById('mainArea').classList.remove('hidden');
+  document.getElementById('currentUsername').textContent = localStorage.getItem(USER_KEY) || '';
+  loadGoals();
+  loadTasks();
+  loadToday();
+  goThisWeek();
+  loadCourses();
+  loadGroups();
+}
+
+function renderAuth() {
+  document.getElementById('authArea').classList.remove('hidden');
+  document.getElementById('userArea').classList.add('hidden');
+  document.getElementById('mainArea').classList.add('hidden');
+}
+
+async function createGoal(e) {
+  e.preventDefault();
+  const title = document.getElementById('goalTitle').value;
+  const deadline = document.getElementById('goalDeadline').value || null;
+  const note = document.getElementById('goalNote').value || null;
+  const r = await api('/api/goals', { method: 'POST', body: JSON.stringify({ title, deadline, note }) });
+  if (r.ok) {
+    document.getElementById('goalTitle').value = '';
+    document.getElementById('goalDeadline').value = '';
+    document.getElementById('goalNote').value = '';
+    loadGoals();
+  } else {
+    alert(r.data.detail || '创建目标失败');
+  }
+}
+
+let _goals = [];
+
+async function loadGoals() {
+  const r = await api('/api/goals');
+  const el = document.getElementById('goalsList');
+  if (!r.ok) { el.innerHTML = '<p class="error">' + (r.data.detail || '加载失败') + '</p>'; return; }
+  _goals = r.data;
+  if (_goals.length === 0) { el.innerHTML = '<p class="empty">还没有目标，创建一个吧</p>'; return; }
+  el.innerHTML = _goals.map(g => `
+    <div class="goal-card" id="goal-${g.id}">
+      <div class="goal-title">${esc(g.title)}</div>
+      <div class="goal-meta">截止: ${fmtDate(g.deadline)} | 创建: ${fmtDate(g.created_at)}${g.note ? ' | ' + esc(g.note) : ''}</div>
+      <div style="margin-top:8px">
+        <button class="small" onclick="decomposeGoal(${g.id})" id="decomposeBtn-${g.id}">AI 拆解</button>
+        <button class="small secondary" onclick="addGoalToGroupPrompt(${g.id})">加入小组</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function decomposeGoal(goalId) {
+  const btn = document.getElementById('decomposeBtn-' + goalId);
+  btn.disabled = true;
+  btn.textContent = '拆解中...';
+  const r = await api('/api/goals/' + goalId + '/decompose', { method: 'POST' });
+  btn.disabled = false;
+  btn.textContent = 'AI 拆解';
+  if (r.ok) {
+    alert('拆解完成，生成 ' + r.data.tasks.length + ' 个待确认任务');
+    loadTasks();
+  } else {
+    alert(r.data.detail || '拆解失败');
+  }
+}
+
+async function createManualTask(e) {
+  e.preventDefault();
+  const title = document.getElementById('manualTitle').value;
+  const estimate_hours = parseFloat(document.getElementById('manualHours').value) || 1;
+  const deadline = document.getElementById('manualDeadline').value || null;
+  const r = await api('/api/tasks', { method: 'POST', body: JSON.stringify({ title, estimate_hours, deadline }) });
+  if (r.ok) {
+    document.getElementById('manualTitle').value = '';
+    document.getElementById('manualHours').value = '1';
+    document.getElementById('manualDeadline').value = '';
+    loadTasks();
+  } else {
+    alert(r.data.detail || '添加任务失败');
+  }
+}
+
+function setFilter(f) {
+  _filter = f;
+  ['All', 'Pending', 'Confirmed', 'Done'].forEach(s => {
+    const btn = document.getElementById('filter' + s);
+    const active = s.toLowerCase() === 'all' ? f === 'all' : f === s.toLowerCase().replace('pending', 'pending_confirm');
+    btn.classList.toggle('active', active);
+    btn.classList.toggle('secondary', !active);
+  });
+  renderTasks();
+}
+
+async function loadTasks() {
+  const r = await api('/api/tasks');
+  if (!r.ok) {
+    document.getElementById('pendingTasks').innerHTML = '<p class="error">' + (r.data.detail || '加载失败') + '</p>';
+    document.getElementById('confirmedTasks').innerHTML = '';
+    document.getElementById('doneTasks').innerHTML = '';
+    return;
+  }
+  _allTasks = r.data.tasks || [];
+  renderTasks();
+  if (_weekStart) loadWeek();
+  loadToday();
+}
+
+function renderTasks() {
+  const pending = _allTasks.filter(t => t.status === 'pending_confirm');
+  const confirmed = _allTasks.filter(t => t.status === 'confirmed');
+  const done = _allTasks.filter(t => t.status === 'done');
+
+  const showPending = _filter === 'all' || _filter === 'pending_confirm';
+  const showConfirmed = _filter === 'all' || _filter === 'confirmed';
+  const showDone = _filter === 'all' || _filter === 'done';
+
+  document.getElementById('pendingPanel').classList.toggle('hidden', !showPending);
+  document.getElementById('confirmedPanel').classList.toggle('hidden', !showConfirmed);
+  document.getElementById('donePanel').classList.toggle('hidden', !showDone);
+
+  const bulkBtn = document.getElementById('bulkConfirmBtn');
+  bulkBtn.disabled = pending.length === 0;
+
+  const pendingEl = document.getElementById('pendingTasks');
+  if (pending.length === 0) pendingEl.innerHTML = '<p class="empty">没有待确认任务</p>';
+  else pendingEl.innerHTML = pending.map(t => renderTask(t, 'pending')).join('');
+
+  const confirmedEl = document.getElementById('confirmedTasks');
+  if (confirmed.length === 0) confirmedEl.innerHTML = '<p class="empty">没有已确认任务</p>';
+  else confirmedEl.innerHTML = confirmed.map(t => renderTask(t, 'confirmed')).join('');
+
+  const doneEl = document.getElementById('doneTasks');
+  if (done.length === 0) doneEl.innerHTML = '<p class="empty">没有已完成任务</p>';
+  else doneEl.innerHTML = done.map(t => renderTask(t, 'done')).join('');
+}
+
+function renderTask(t, mode) {
+  const goal = _goals.find(g => g.id === t.goal_id);
+  const goalTitle = goal ? goal.title : '(独立任务)';
+  let actions = '';
+  if (mode === 'pending') {
+    actions = `
+      <button class="small" onclick="toggleEdit(${t.id})">编辑</button>
+      <button class="small" onclick="confirmTask(${t.id})">确认入池</button>
+      <button class="danger small" onclick="deleteTask(${t.id})">删除</button>
+    `;
+  } else if (mode === 'confirmed') {
+    actions = `
+      <button class="small" onclick="toggleEdit(${t.id})">编辑</button>
+      <button class="small" onclick="doneTask(${t.id})">标记完成</button>
+      <button class="danger small" onclick="deleteTask(${t.id})">删除</button>
+    `;
+  }
+  const editRow = mode !== 'done' ? `
+    <div class="edit-row hidden" id="edit-${t.id}">
+      <label>标题</label>
+      <input type="text" id="editTitle-${t.id}" value="${esc(t.title)}" style="width:200px">
+      <label>估时(h)</label>
+      <input type="number" step="0.5" min="0.5" id="editHours-${t.id}" value="${t.estimate_hours}">
+      <label>截止</label>
+      <input type="date" id="editDeadline-${t.id}" value="${t.deadline ? t.deadline.slice(0,10) : ''}">
+      <button class="small" onclick="saveEdit(${t.id})">保存</button>
+    </div>
+  ` : '';
+  return `
+    <div class="task-card" id="task-${t.id}">
+      <div class="task-title">${esc(t.title)}</div>
+      <div class="task-meta">
+        ${badge(t.source, t.resource_verified, t.status)}
+        | 目标: ${esc(goalTitle)}
+        | 估时: ${t.estimate_hours}h
+        | 截止: ${fmtDate(t.deadline)}
+        ${t.resource_url ? ' | <a href="' + esc(t.resource_url) + '" target="_blank">资源</a>' : ''}
+      </div>
+      <div class="task-actions">${actions}</div>
+      ${editRow}
+    </div>
+  `;
+}
+
+function toggleEdit(taskId) {
+  document.getElementById('edit-' + taskId).classList.toggle('hidden');
+}
+
+async function saveEdit(taskId) {
+  const title = document.getElementById('editTitle-' + taskId).value;
+  const hours = parseFloat(document.getElementById('editHours-' + taskId).value);
+  const deadlineStr = document.getElementById('editDeadline-' + taskId).value;
+  const body = {};
+  if (title) body.title = title;
+  if (!isNaN(hours) && hours > 0) body.estimate_hours = hours;
+  if (deadlineStr) body.deadline = deadlineStr;
+  const r = await api('/api/tasks/' + taskId, { method: 'PUT', body: JSON.stringify(body) });
+  if (r.ok) loadTasks();
+  else alert(r.data.detail || '保存失败');
+}
+
+async function confirmTask(taskId) {
+  const r = await api('/api/tasks/' + taskId + '/confirm', { method: 'POST' });
+  if (r.ok) loadTasks();
+  else alert(r.data.detail || '确认失败');
+}
+
+async function bulkConfirm() {
+  const pending = _allTasks.filter(t => t.status === 'pending_confirm');
+  if (pending.length === 0) return;
+  const ids = pending.map(t => t.id);
+  const r = await api('/api/tasks/bulk_confirm', { method: 'POST', body: JSON.stringify({ ids }) });
+  if (r.ok) {
+    alert('已确认 ' + r.data.confirmed.length + ' 条，跳过 ' + r.data.skipped.length + ' 条');
+    loadTasks();
+  } else {
+    alert(r.data.detail || '批量确认失败');
+  }
+}
+
+async function doneTask(taskId) {
+  const r = await api('/api/tasks/' + taskId + '/done', { method: 'POST' });
+  if (r.ok) loadTasks();
+  else alert(r.data.detail || '标记完成失败');
+}
+
+async function deleteTask(taskId) {
+  if (!confirm('确定删除此任务？')) return;
+  const r = await api('/api/tasks/' + taskId, { method: 'DELETE' });
+  if (r.ok) loadTasks();
+  else alert(r.data.detail || '删除失败');
+}
+
+async function postponeTask(taskId) {
+  const t = _allTasks.find(x => x.id === taskId);
+  if (!t) return;
+  let newDeadline;
+  if (t.deadline) {
+    const d = new Date(t.deadline);
+    d.setDate(d.getDate() + 7);
+    newDeadline = d.toISOString().slice(0, 10);
+  } else {
+    newDeadline = _weekStart;
+  }
+  const r = await api('/api/tasks/' + taskId, { method: 'PUT', body: JSON.stringify({ deadline: newDeadline }) });
+  if (r.ok) { loadTasks(); }
+  else alert(r.data.detail || '推迟失败');
+}
+
+let _weekStart = '';
+
+function getMonday(d) {
+  const dt = new Date(d);
+  const day = dt.getDay();
+  const diff = dt.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(dt.setDate(diff));
+}
+
+function fmtDateStr(d) {
+  const dt = new Date(d);
+  return dt.toISOString().slice(0, 10);
+}
+
+function shiftWeek(delta) {
+  const d = new Date(_weekStart);
+  d.setDate(d.getDate() + delta * 7);
+  _weekStart = fmtDateStr(d);
+  loadWeek();
+}
+
+function goThisWeek() {
+  _weekStart = fmtDateStr(getMonday(new Date()));
+  loadWeek();
+}
+
+async function loadWeek() {
+  if (!_weekStart) goThisWeek();
+  const r = await api('/api/week?week_start=' + _weekStart);
+  if (!r.ok) return;
+  renderWeek(r.data);
+}
+
+function renderWeek(data) {
+  document.getElementById('weekRange').textContent = data.week_start + ' ~ ' + data.week_end;
+  const s = data.summary;
+  const barEl = document.getElementById('capacityBar');
+  let gapHtml;
+  if (s.gap_hours > 0) gapHtml = '<span class="gap-positive">排多了 ' + s.gap_hours + ' 小时</span>';
+  else if (s.gap_hours < 0) gapHtml = '<span class="gap-negative">还有 ' + Math.abs(s.gap_hours) + ' 小时空余</span>';
+  else gapHtml = '<span class="gap-zero">刚好排满</span>';
+  barEl.innerHTML = '已确认 <b>' + s.confirmed_hours + '</b> 小时 / 可投入 <b>' + s.available_hours + '</b> 小时 — ' + gapHtml;
+
+  document.getElementById('capacityInput').value = s.available_hours;
+
+  const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+  const gridEl = document.getElementById('weekGrid');
+  gridEl.innerHTML = '<div class="week-grid">' + data.days.map(d => {
+    const taskHtml = d.tasks.length === 0
+      ? '<p class="empty" style="font-size:0.7rem;margin:0">无</p>'
+      : d.tasks.map(t => '<div class="mini-task ' + t.source + '">' + esc(t.title) + ' (' + t.estimate_hours + 'h)</div>').join('');
+    return '<div class="day-cell"><div class="day-header">' + weekdays[d.weekday - 1] + ' ' + d.date.slice(5) + '</div>' + taskHtml + '</div>';
+  }).join('') + '</div>';
+
+  const unsEl = document.getElementById('unscheduledArea');
+  if (data.unscheduled.length === 0) {
+    unsEl.innerHTML = '';
+  } else {
+    unsEl.innerHTML = '<h2 style="font-size:0.9rem">未排期</h2>' + data.unscheduled.map(t =>
+      '<div class="task-card"><div class="task-title">' + esc(t.title) + '</div>' +
+      '<div class="task-meta">' + badge(t.source, false, t.status) + ' | 估时: ' + t.estimate_hours + 'h</div>' +
+      '<div class="task-actions">' +
+      '<button class="small" onclick="postponeTask(' + t.id + ')">推迟到下周</button>' +
+      '<button class="small" onclick="doneTask(' + t.id + ')">完成</button>' +
+      '</div></div>'
+    ).join('');
+  }
+  renderScheduleGrid(data);
+}
+
+async function saveCapacity() {
+  const hours = parseFloat(document.getElementById('capacityInput').value) || 0;
+  const r = await api('/api/capacity', { method: 'PUT', body: JSON.stringify({ week_start: _weekStart, hours }) });
+  if (r.ok) loadWeek();
+  else alert(r.data.detail || '保存容量失败');
+}
+
+async function loadToday() {
+  const r = await api('/api/reviews/today');
+  if (!r.ok) return;
+  const data = r.data;
+  document.getElementById('todayDate').textContent = data.date;
+  const s = data.streak;
+  document.getElementById('streakDisplay').innerHTML = '连续 <b>' + s.current + '</b> 天（最长 ' + s.longest + ' 天）';
+
+  const pending = data.tasks.filter(t => t.status === 'confirmed');
+  const done = data.tasks.filter(t => t.status === 'done');
+
+  const pendingEl = document.getElementById('todayPending');
+  if (pending.length === 0) {
+    pendingEl.innerHTML = '<p class="empty">今天没有待办任务</p>';
+  } else {
+    pendingEl.innerHTML = pending.map(t => `
+      <div class="task-card">
+        <div class="task-title">${esc(t.title)}</div>
+        <div class="task-meta">${badge(t.source, false, t.status)} | 估时: ${t.estimate_hours}h | 截止: ${fmtDate(t.deadline)}</div>
+        <div class="task-actions">
+          <button class="small" onclick="reviewAction(${t.id}, 'done')">完成</button>
+          <button class="small secondary" onclick="reviewAction(${t.id}, 'tired')">太累了</button>
+          <button class="small secondary" onclick="reviewAction(${t.id}, 'defer')">推迟</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  const doneEl = document.getElementById('todayDone');
+  if (done.length === 0) {
+    doneEl.innerHTML = '';
+  } else {
+    doneEl.innerHTML = '<h2 style="font-size:0.9rem">今日已完成</h2>' + done.map(t => `
+      <div class="task-card">
+        <div class="task-title">${esc(t.title)}</div>
+        <div class="task-meta">${badge(t.source, false, t.status)} | 估时: ${t.estimate_hours}h</div>
+      </div>
+    `).join('');
+  }
+}
+
+async function reviewAction(taskId, action) {
+  const r = await api('/api/reviews', { method: 'POST', body: JSON.stringify({ task_id: taskId, action }) });
+  if (r.ok) {
+    if (action === 'tired') {
+      const rs = r.data.reschedule;
+      if (rs && rs.implemented && rs.moved && rs.moved.length > 0) {
+        const lines = rs.moved.map(m => `任务#${m.task_id}: ${m.old_deadline || '无'} → ${m.new_deadline}`);
+        alert('已顺延并重排后续任务（' + (rs.source === 'llm' ? 'AI' : rs.source === 'cache' ? 'AI缓存' : '启发式') + '）：\n' + lines.join('\n'));
+      } else {
+        alert('已顺延到明天，暂无其他需要重排的任务');
+      }
+    }
+    loadTasks();
+    loadToday();
+  } else {
+    alert(r.data.detail || '操作失败');
+  }
+}
+
+function switchImport(mode) {
+  ['ics', 'csv', 'manual', 'pdf'].forEach(m => {
+    const tab = document.getElementById('tab' + m.charAt(0).toUpperCase() + m.slice(1));
+    const panel = document.getElementById(m + 'Import');
+    const active = m === mode;
+    tab.classList.toggle('active', active);
+    tab.classList.toggle('secondary', !active);
+    panel.classList.toggle('hidden', !active);
+  });
+  if (mode === 'pdf' && !window._pdfjsReady) {
+    document.getElementById('pdfStatus').textContent = 'pdf.js CDN 不可用，请直接粘贴课表文本到下方文本框';
+  }
+}
+
+async function importIcs() {
+  const content = document.getElementById('icsContent').value;
+  if (!content) return;
+  const r = await api('/api/courses/import', { method: 'POST', body: JSON.stringify({ format: 'ics', content }) });
+  if (r.ok) { alert('导入 ' + r.data.added + ' 条，跳过 ' + r.data.skipped + ' 条'); document.getElementById('icsContent').value = ''; loadCourses(); }
+  else alert(r.data.detail || '导入失败');
+}
+
+async function importCsv() {
+  const content = document.getElementById('csvContent').value;
+  if (!content) return;
+  const r = await api('/api/courses/import', { method: 'POST', body: JSON.stringify({ format: 'csv', content }) });
+  if (r.ok) { alert('导入 ' + r.data.added + ' 条，跳过 ' + r.data.skipped + ' 条'); document.getElementById('csvContent').value = ''; loadCourses(); }
+  else alert(r.data.detail || '导入失败');
+}
+
+async function importManual() {
+  const name = document.getElementById('courseName').value;
+  const weekday = parseInt(document.getElementById('courseWeekday').value);
+  const start_time = document.getElementById('courseStart').value;
+  const end_time = document.getElementById('courseEnd').value;
+  const teacher = document.getElementById('courseTeacher').value || null;
+  const location = document.getElementById('courseLocation').value || null;
+  if (!name || !start_time || !end_time) { alert('请填写课程名和时间'); return; }
+  const r = await api('/api/courses/import', { method: 'POST', body: JSON.stringify({ format: 'manual', courses: [{ name, weekday, start_time, end_time, teacher, location }] }) });
+  if (r.ok) { loadCourses(); }
+  else alert(r.data.detail || '添加失败');
+}
+
+async function loadCourses() {
+  const r = await api('/api/courses');
+  const el = document.getElementById('courseList');
+  if (!r.ok) { el.innerHTML = '<p class="error">加载失败</p>'; return; }
+  const courses = r.data;
+  if (courses.length === 0) { el.innerHTML = '<p class="empty">没有课程</p>'; document.getElementById('suggestedArea').innerHTML = ''; return; }
+  const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+  const grouped = {};
+  courses.forEach(c => { (grouped[c.weekday] = grouped[c.weekday] || []).push(c); });
+  el.innerHTML = Object.keys(grouped).sort().map(wd => {
+    const items = grouped[wd].map(c => `<div class="task-card" style="margin:4px 0;padding:6px"><span class="task-title">${esc(c.name)}</span> <span class="task-meta">${c.start_time}-${c.end_time}${c.teacher ? ' | ' + esc(c.teacher) : ''}${c.location ? ' | ' + esc(c.location) : ''} <span class="badge ${c.source === 'ics' ? 'ai' : 'manual'}">${c.source}</span></span></div>`).join('');
+    return `<div style="margin-bottom:8px"><div class="day-header">${weekdays[wd - 1]}</div>${items}</div>`;
+  }).join('');
+
+  if (_weekStart) {
+    const sr = await api('/api/courses/suggested_hours?week_start=' + _weekStart);
+    if (sr.ok) {
+      document.getElementById('suggestedArea').innerHTML = `<div class="row" style="align-items:center"><span>本周课时 <b>${sr.data.class_hours}</b>h，建议可投入 <b>${sr.data.suggested_hours}</b>h（基准 ${sr.data.base}h）</span><button class="small" onclick="adoptSuggested()" style="margin-left:auto">采用建议</button></div>`;
+    }
+  }
+}
+
+async function clearCourses() {
+  if (!confirm('确定清空全部课表？')) return;
+  const r = await api('/api/courses', { method: 'DELETE' });
+  if (r.ok) loadCourses();
+  else alert(r.data.detail || '清空失败');
+}
+
+async function adoptSuggested() {
+  if (!_weekStart) return;
+  const r = await api('/api/capacity/adopt_suggested', { method: 'POST', body: JSON.stringify({ week_start: _weekStart }) });
+  if (r.ok) { loadWeek(); alert('已采用建议可投入 ' + r.data.hours + 'h'); }
+  else alert(r.data.detail || '采用失败');
+}
+
+let _parsedCourses = [];
+
+async function extractPdfText() {
+  const fileInput = document.getElementById('pdfFile');
+  const statusEl = document.getElementById('pdfStatus');
+  if (!fileInput.files || !fileInput.files[0]) { statusEl.textContent = '请先选择 PDF 文件'; return; }
+  if (!window._pdfjsReady) { statusEl.textContent = 'pdf.js 未加载，请直接粘贴课表文本'; return; }
+  statusEl.textContent = '提取中...';
+  try {
+    const file = fileInput.files[0];
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      fullText += content.items.map(function(item) { return item.str; }).join(' ') + '\n';
+    }
+    document.getElementById('pdfText').value = fullText;
+    statusEl.textContent = '提取完成，' + pdf.numPages + ' 页，' + fullText.length + ' 字符';
+  } catch (e) {
+    statusEl.textContent = '提取失败: ' + e.message;
+  }
+}
+
+async function parseCourseText() {
+  const text = document.getElementById('pdfText').value;
+  if (!text) { alert('请先提取或粘贴课表文本'); return; }
+  const r = await api('/api/courses/parse_text', { method: 'POST', body: JSON.stringify({ text }) });
+  if (r.status === 503) {
+    alert('LLM 不可用: ' + (r.data.reason || '') + ' (fallback: ' + (r.data.fallback || 'none') + ')');
+    return;
+  }
+  if (!r.ok) { alert(r.data.detail || '解析失败'); return; }
+  _parsedCourses = r.data.courses || [];
+  renderParsePreview(r.data.llm);
+}
+
+function renderParsePreview(llmSource) {
+  const el = document.getElementById('parsePreview');
+  if (_parsedCourses.length === 0) {
+    el.innerHTML = '<p class="empty">未解析出课程，请检查文本或手动编辑后重试</p>';
+    return;
+  }
+  const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+  let html = '<p style="font-size:0.8rem;color:#64748b">解析出 ' + _parsedCourses.length + ' 条课程 (LLM: ' + llmSource + ')</p>';
+  html += '<table style="width:100%;font-size:0.8rem;border-collapse:collapse;margin-bottom:8px">';
+  html += '<tr style="background:#f1f5f9"><th style="padding:4px;text-align:left">课程名</th><th>周几</th><th>开始</th><th>结束</th><th>周次</th><th>地点</th><th></th></tr>';
+  _parsedCourses.forEach(function(c, i) {
+    const weeksStr = c.weeks ? c.weeks.join(',') : '-';
+    html += '<tr style="border-bottom:1px solid #e2e8f0">';
+    html += '<td style="padding:4px"><input type="text" id="pc-name-' + i + '" value="' + esc(c.name) + '" style="width:100%;padding:2px 4px;font-size:0.8rem"></td>';
+    html += '<td><input type="number" id="pc-wd-' + i + '" value="' + c.weekday + '" min="1" max="7" style="width:40px;padding:2px 4px;font-size:0.8rem"></td>';
+    html += '<td><input type="text" id="pc-st-' + i + '" value="' + c.start_time + '" style="width:50px;padding:2px 4px;font-size:0.8rem"></td>';
+    html += '<td><input type="text" id="pc-et-' + i + '" value="' + c.end_time + '" style="width:50px;padding:2px 4px;font-size:0.8rem"></td>';
+    html += '<td style="font-size:0.7rem;color:#64748b">' + weeksStr + '</td>';
+    html += '<td><input type="text" id="pc-loc-' + i + '" value="' + esc(c.location || '') + '" style="width:80px;padding:2px 4px;font-size:0.8rem"></td>';
+    html += '<td><button class="danger small" onclick="deleteParsedCourse(' + i + ')">删</button></td>';
+    html += '</tr>';
+  });
+  html += '</table>';
+  html += '<button class="small" onclick="confirmParsedCourses()">确认写入课表</button>';
+  el.innerHTML = html;
+}
+
+function deleteParsedCourse(index) {
+  _parsedCourses.splice(index, 1);
+  renderParsePreview('');
+}
+
+async function confirmParsedCourses() {
+  const courses = [];
+  for (let i = 0; i < _parsedCourses.length; i++) {
+    const name = document.getElementById('pc-name-' + i).value;
+    const weekday = parseInt(document.getElementById('pc-wd-' + i).value);
+    const start_time = document.getElementById('pc-st-' + i).value;
+    const end_time = document.getElementById('pc-et-' + i).value;
+    const location = document.getElementById('pc-loc-' + i).value || null;
+    if (!name || !start_time || !end_time) continue;
+    courses.push({ name, weekday, start_time, end_time, weeks: _parsedCourses[i].weeks, location });
+  }
+  if (courses.length === 0) { alert('没有有效课程'); return; }
+  const r = await api('/api/courses/import', { method: 'POST', body: JSON.stringify({ format: 'manual', courses }) });
+  if (r.ok) {
+    alert('写入 ' + r.data.added + ' 条课程');
+    document.getElementById('parsePreview').innerHTML = '';
+    document.getElementById('pdfText').value = '';
+    loadCourses();
+  } else {
+    alert(r.data.detail || '写入失败');
+  }
+}
+
+function shiftScheduleWeek(delta) { shiftWeek(delta); }
+function goScheduleThisWeek() { goThisWeek(); }
+
+function renderScheduleGrid(data) {
+  document.getElementById('scheduleWeekRange').textContent = data.week_start + ' ~ ' + data.week_end;
+  const el = document.getElementById('scheduleGrid');
+  const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+  const startHour = 8, endHour = 22;
+  const totalSlots = (endHour - startHour) * 2;
+
+  let allSlots = [];
+  data.days.forEach(function(day) { allSlots = allSlots.concat(day.slots || []); });
+  if (allSlots.length === 0) {
+    el.innerHTML = '<div class="schedule-wrap"><p class="empty" style="text-align:center;padding:20px">本周无课 — <button class="small" onclick="switchImport(\'manual\')">去导入课表</button></p></div>';
+    return;
+  }
+
+  let html = '<div class="schedule-wrap"><table class="schedule-table"><thead><tr><th></th>';
+  weekdays.forEach(function(w) { html += '<th>' + w + '</th>'; });
+  html += '</tr></thead><tbody>';
+
+  for (let s = 0; s < totalSlots; s++) {
+    const hour = startHour + Math.floor(s / 2);
+    const minute = (s % 2) * 30;
+    const label = hour + ':' + (minute === 0 ? '00' : '30');
+    html += '<tr><td class="time-label">' + label + '</td>';
+    for (let wd = 1; wd <= 7; wd++) {
+      html += '<td id="cell-' + s + '-' + wd + '"></td>';
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table></div>';
+  el.innerHTML = html;
+
+  data.days.forEach(function(day) {
+    const wd = day.weekday;
+    (day.slots || []).forEach(function(slot) {
+      const startParts = slot.start_time.split(':');
+      const endParts = slot.end_time.split(':');
+      const startSlot = (parseInt(startParts[0]) - startHour) * 2 + (parseInt(startParts[1]) >= 30 ? 1 : 0);
+      const endSlot = (parseInt(endParts[0]) - startHour) * 2 + (parseInt(endParts[1]) > 0 ? (parseInt(endParts[1]) >= 30 ? 1 : 0) : 0);
+      const span = Math.max(1, endSlot - startSlot);
+
+      const cellId = 'cell-' + startSlot + '-' + wd;
+      const cell = document.getElementById(cellId);
+      if (!cell) return;
+
+      const existing = cell.querySelector('.course-block');
+      if (existing) {
+        const blocks = cell.querySelectorAll('.course-block');
+        if (blocks.length >= 2) {
+          const countEl = cell.querySelector('.overlap-count');
+          if (countEl) { countEl.textContent = '+' + (blocks.length); }
+          else { cell.innerHTML += '<span class="overlap-count" style="font-size:0.65rem;color:#dc2626">+' + blocks.length + '</span>'; }
+        } else {
+          existing.style.width = '48%';
+          existing.style.display = 'inline-block';
+          const block = document.createElement('div');
+          block.className = 'course-block overlap2';
+          block.style.width = '48%';
+          block.style.display = 'inline-block';
+          block.innerHTML = esc(slot.name) + '<br><span class="cb-loc">' + esc(slot.location || '') + '</span>';
+          block.onclick = function() { showCourseDetail(slot); };
+          cell.appendChild(block);
+        }
+        return;
+      }
+
+      cell.innerHTML = '<div class="course-block" style="height:' + (span * 28 - 4) + 'px">' +
+        esc(slot.name) + '<br><span class="cb-loc">' + esc(slot.location || '') + '</span></div>';
+      const block = cell.querySelector('.course-block');
+      block.onclick = function() { showCourseDetail(slot); };
+    });
+  });
+}
+
+function showCourseDetail(slot) {
+  const msg = '课程：' + slot.name + '\n时间：' + slot.start_time + '-' + slot.end_time + '\n地点：' + (slot.location || '未指定');
+  if (confirm(msg + '\n\n确定删除此课程？')) {
+    deleteCourseFromGrid(slot.course_id);
+  }
+}
+
+async function deleteCourseFromGrid(courseId) {
+  const r = await api('/api/courses/' + courseId, { method: 'DELETE' });
+  if (r.ok) { loadCourses(); if (_weekStart) loadWeek(); }
+  else alert(r.data.detail || '删除失败');
+}
+
+let _myGroups = [];
+let _selectedGroupId = null;
+
+async function loadGroups() {
+  const r = await api('/api/groups');
+  const el = document.getElementById('groupsList');
+  if (!r.ok) { el.innerHTML = '<p class="error">加载失败</p>'; return; }
+  _myGroups = r.data.groups || [];
+  if (_myGroups.length === 0) { el.innerHTML = '<p class="empty">还没有小组</p>'; return; }
+  el.innerHTML = _myGroups.map(g => `
+    <div class="goal-card" onclick="selectGroup(${g.id})" style="cursor:pointer">
+      <div class="goal-title">${esc(g.name)}</div>
+      <div class="goal-meta">${g.role === 'owner' ? '组长' : '成员'} | 成员 ${g.member_count} 人</div>
+    </div>
+  `).join('');
+  if (_selectedGroupId) selectGroup(_selectedGroupId);
+}
+
+async function createGroup() {
+  const name = document.getElementById('groupName').value;
+  if (!name) return;
+  const r = await api('/api/groups', { method: 'POST', body: JSON.stringify({ name }) });
+  if (r.ok) {
+    document.getElementById('groupName').value = '';
+    alert('小组创建成功，邀请码：' + r.data.invite_code + '（24小时内有效）');
+    loadGroups();
+  } else alert(r.data.detail || '创建失败');
+}
+
+async function joinGroup() {
+  const code = document.getElementById('joinCode').value;
+  if (!code) return;
+  const r = await api('/api/groups/join', { method: 'POST', body: JSON.stringify({ code }) });
+  if (r.ok) {
+    document.getElementById('joinCode').value = '';
+    alert('已加入小组：' + r.data.name);
+    loadGroups();
+  } else alert(r.data.detail || '加入失败');
+}
+
+async function selectGroup(groupId) {
+  _selectedGroupId = groupId;
+  const r = await api('/api/groups/' + groupId);
+  const el = document.getElementById('groupDetail');
+  if (!r.ok) { el.innerHTML = '<p class="error">加载失败</p>'; return; }
+  const g = r.data;
+  let html = '<div class="row" style="align-items:center"><div class="goal-title">' + esc(g.name) + '</div>';
+  if (g.invite_code) html += '<button class="small" onclick="copyCode(\'' + g.invite_code + '\')" style="margin-left:12px">复制邀请码 ' + g.invite_code + '</button>';
+  html += '</div>';
+
+  html += '<h2 style="font-size:0.9rem;margin-top:12px">成员</h2>';
+  html += g.members.map(m => '<div class="task-card"><div class="task-title">' + esc(m.username) + '</div><div class="task-meta">完成 ' + m.done_count + ' | 连续 ' + m.streak + ' 天 | 完成率 ' + (m.completion_rate * 100).toFixed(0) + '%</div></div>').join('');
+
+  html += '<h2 style="font-size:0.9rem;margin-top:12px">共同目标</h2>';
+  if (g.goals.length === 0) html += '<p class="empty">暂无共同目标</p>';
+  else {
+    html += g.goals.map(function(goal) {
+      let t = '<div class="goal-card"><div class="goal-title">' + esc(goal.title) + '</div>';
+      t += '<div class="goal-meta">进度: ' + goal.progress.done + '/' + goal.progress.total + ' | 已认领 ' + goal.progress.claimed + '</div>';
+      t += goal.tasks.map(function(task) {
+        let btn = '';
+        if (task.assignee_user_id === null) btn = '<button class="small" onclick="claimTask(' + g.id + ', ' + task.id + ')">认领</button>';
+        else if (task.assignee_username) btn = '<span class="badge manual">' + esc(task.assignee_username) + '</span> <button class="small secondary" onclick="unclaimTask(' + g.id + ', ' + task.id + ')">取消</button>';
+        return '<div class="task-card"><div class="task-title">' + esc(task.title) + '</div><div class="task-meta">' + task.status + ' | ' + task.estimate_hours + 'h ' + btn + '</div></div>';
+      }).join('');
+      t += '</div>';
+      return t;
+    }).join('');
+  }
+  el.innerHTML = html;
+}
+
+function copyCode(code) {
+  navigator.clipboard.writeText(code).then(function() { alert('已复制: ' + code); });
+}
+
+async function addGoalToGroupPrompt(goalId) {
+  if (_myGroups.length === 0) { alert('请先创建或加入小组'); return; }
+  const options = _myGroups.map(function(g, i) { return (i + 1) + '. ' + g.name + ' (ID: ' + g.id + ')'; }).join('\n');
+  const input = prompt('选择小组:\n' + options + '\n输入小组ID:');
+  if (!input) return;
+  const groupId = parseInt(input);
+  const r = await api('/api/groups/' + groupId + '/goals', { method: 'POST', body: JSON.stringify({ goal_id: goalId }) });
+  if (r.ok) { alert('已加入共同目标'); if (_selectedGroupId === groupId) selectGroup(groupId); }
+  else alert(r.data.detail || '加入失败');
+}
+
+async function claimTask(groupId, taskId) {
+  const r = await api('/api/groups/' + groupId + '/tasks/' + taskId + '/claim', { method: 'POST' });
+  if (r.ok) selectGroup(groupId);
+  else alert(r.data.detail || '认领失败');
+}
+
+async function unclaimTask(groupId, taskId) {
+  const r = await api('/api/groups/' + groupId + '/tasks/' + taskId + '/unclaim', { method: 'POST' });
+  if (r.ok) selectGroup(groupId);
+  else alert(r.data.detail || '取消认领失败');
+}
+
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+async function bootstrap() {
+  const t = getToken();
+  if (!t) { renderAuth(); return; }
+  const r = await api('/api/me');
+  if (r.ok) { localStorage.setItem(USER_KEY, r.data.username); renderUser(); }
+  else { clearToken(); renderAuth(); }
+}
+
+bootstrap();
+</script>
+</body>
+</html>

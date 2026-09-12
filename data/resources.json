@@ -1,0 +1,12 @@
+[
+  {"resource_id": "mit-18.01-u1", "title": "MIT 18.01 Unit 1: Differentiation", "source": "MIT OCW", "url": "https://ocw.mit.edu/courses/18-01-single-variable-calculus-fall-2006/pages/unit-1-differentiation/", "verified": true},
+  {"resource_id": "mit-18.01-u2", "title": "MIT 18.01 Unit 2: Applications of Differentiation", "source": "MIT OCW", "url": "https://ocw.mit.edu/courses/18-01-single-variable-calculus-fall-2006/pages/unit-2-applications-of-differentiation/", "verified": true},
+  {"resource_id": "mit-18.01-u3", "title": "MIT 18.01 Unit 3: Integration", "source": "MIT OCW", "url": "https://ocw.mit.edu/courses/18-01-single-variable-calculus-fall-2006/pages/unit-3-integration/", "verified": true},
+  {"resource_id": "mit-18.01-u4", "title": "MIT 18.01 Unit 4: Applications of Integration", "source": "MIT OCW", "url": "https://ocw.mit.edu/courses/18-01-single-variable-calculus-fall-2006/pages/unit-4-applications-of-integration/", "verified": true},
+  {"resource_id": "mit-18.06-lec1", "title": "MIT 18.06 Lecture 1: The Geometry of Linear Equations", "source": "MIT OCW", "url": "https://ocw.mit.edu/courses/18-06-linear-algebra-spring-2010/pages/lecture-1-the-geometry-of-linear-equations/", "verified": true},
+  {"resource_id": "mit-18.06-lec2", "title": "MIT 18.06 Lecture 2: Matrix Elimination", "source": "MIT OCW", "url": "https://ocw.mit.edu/courses/18-06-linear-algebra-spring-2010/pages/lecture-2-matrix-elimination/", "verified": true},
+  {"resource_id": "cs50-w1", "title": "CS50 Week 1: C", "source": "Harvard CS50", "url": "https://cs50.harvard.edu/x/2024/weeks/1/", "verified": true},
+  {"resource_id": "cs50-w2", "title": "CS50 Week 2: Arrays", "source": "Harvard CS50", "url": "https://cs50.harvard.edu/x/2024/weeks/2/", "verified": true},
+  {"resource_id": "mit-6.006-lec1", "title": "MIT 6.006 Lecture 1: Algorithms and Computation", "source": "MIT OCW", "url": "https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-spring-2020/pages/lecture-1-algorithms-and-computation/", "verified": true},
+  {"resource_id": "ladr-ch1", "title": "Linear Algebra Done Right Ch.1: Vector Spaces", "source": "Axler", "url": "https://linear.axler.net/", "verified": true}
+]
